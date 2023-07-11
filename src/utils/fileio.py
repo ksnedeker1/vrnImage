@@ -12,10 +12,11 @@ class ImagePathError(Exception):
         return f'Path does not exist or is invalid: {type(self.path)} {self.path} '
 
 
-def import_image(path: str):
+def import_image(path: str, split: bool = False):
     """
     Imports the image file at the specified path. Supports most common file types.
     :param path: relative or absolute path to the file
+    :param split: whether output splits luminance and color channels or not
     :return: numpy array containing CIELAB values representing the imported image
     """
     # Ensure path is a string which is valid and exists
@@ -23,5 +24,6 @@ def import_image(path: str):
         raise ImagePathError(path)
     # Open image with PIL
     image = Image.open(path)
-    # Return np.array of image converted to CIELAB color space
-    return skimage.color.rgb2lab(np.array(image))
+    # Convert to np.array of image converted to CIELAB color space
+    cielab_array = skimage.color.rgb2lab(np.array(image))
+    return (cielab_array[:, :, 0], cielab_array[:, :, 1:]) if split else cielab_array
