@@ -1,9 +1,10 @@
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from mainwindow import Ui_MainWindow
 from resources.htmlstrings import *
 from resources.statusbarmessages import *
 from os.path import expanduser
-# from ..utils.fileio import import_image
+from src.utils.fileio import import_image
+# from src.process.image_formatting import rgb_to_cielab
 
 
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -27,38 +28,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.processActive = False
 
         self.activeImagePath = None
-
-    def show_select_image_menu(self):
-        """
-        Secondary selection for 'Select Image'. User can choose images included with the application, or from their
-        computer.
-        """
-        menu = QtWidgets.QMenu()
-        option1 = QtWidgets.QAction('Choose from examples', self)
-        option2 = QtWidgets.QAction('Choose my own', self)
-        option1.triggered.connect(self.choose_included_image)
-        option2.triggered.connect(self.choose_image_on_disk)
-        menu.addAction(option1)
-        menu.addAction(option2)
-        # Position selection menu below 'Select Image' button
-        button_geometry = self.selectImage.geometry()
-        global_button_position = self.selectImage.mapToGlobal(QtCore.QPoint(0, button_geometry.height()))
-        menu.exec_(global_button_position)
-
-    def choose_included_image(self):
-        """
-        TODO: implement selection window/dialog for included images
-        """
-        pass
-
-    def choose_image_on_disk(self):
-        """
-        Launch a file dialog to allow the user to select and image file from their machine.
-        """
-        # Start the file dialog at the user's home directory, store the path this dialog returns
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose image file...", expanduser("~"))
-        if file_name:
-            self.activeImagePath = file_name
+        self.activeImage = None
 
     def init_element_states(self):
         """
@@ -143,6 +113,60 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.mPSNRLabel.setVisible(not self.mPSNRLabel.isVisible())
             self.mPSNRValue.setVisible(not self.mPSNRValue.isVisible())
             self.line_7.setVisible(not self.line_7.isVisible())
+
+    def show_select_image_menu(self):
+        """
+        Secondary selection for 'Select Image'. User can choose images included with the application, or from their
+        computer.
+        """
+        menu = QtWidgets.QMenu()
+        option1 = QtWidgets.QAction('Choose from examples', self)
+        option2 = QtWidgets.QAction('Choose my own', self)
+        option1.triggered.connect(self.choose_included_image)
+        option2.triggered.connect(self.choose_image_on_disk)
+        menu.addAction(option1)
+        menu.addAction(option2)
+        # Position selection menu below 'Select Image' button
+        button_geometry = self.selectImage.geometry()
+        global_button_position = self.selectImage.mapToGlobal(QtCore.QPoint(0, button_geometry.height()))
+        menu.exec_(global_button_position)
+
+    def choose_included_image(self):
+        """
+        TODO: implement selection window/dialog for included images
+        """
+        pass
+
+    def choose_image_on_disk(self):
+        """
+        Launch a file dialog to allow the user to select and image file from their machine.
+        """
+        # Start the file dialog at the user's home directory, store the path this dialog returns
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose image file...", expanduser("~"))
+        if file_name:
+            self.activeImagePath = file_name
+            self.load_image()
+
+    def load_image(self):
+        """
+        Load the image at path activeImagePath and show it as a preview in the graphics view.
+        """
+        self.activeImage = import_image(self.activeImagePath)
+        h, w, _ = self.activeImage.shape
+        bytes_per = 3 * w    # 3 color channels
+        q_img = QtGui.QImage(self.activeImage.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
+
+        # Create a QPixmap from the QImage, add it as a QGraphicsPixmapItem for display in QGraphicsView
+        pixmap = QtGui.QPixmap.fromImage(q_img)
+        pixmap_item = QtWidgets.QGraphicsPixmapItem(pixmap)
+
+        # Create a QGraphicsScene, add QGraphicsPixmapItem
+        scene = QtWidgets.QGraphicsScene()
+        scene.addItem(pixmap_item)
+
+        # Set scene in the QGraphicsView and scale
+        self.viewGraphics.setScene(scene)
+        self.viewGraphics.fitInView(pixmap_item, mode=QtCore.Qt.KeepAspectRatio)
 
     def process_toggle_handler(self):
         """
