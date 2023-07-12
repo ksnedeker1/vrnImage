@@ -51,7 +51,7 @@ class Ui_MainWindow(object):
         self.textDisplay = QtWidgets.QTextEdit(self.centralwidget)
         self.textDisplay.setGeometry(QtCore.QRect(30, 330, 581, 341))
         self.textDisplay.setObjectName("textDisplay")
-        self.viewGraphics = QtWidgets.QGraphicsView(self.centralwidget)
+        self.viewGraphics = QGraphicsViewZoom(self.centralwidget)
         self.viewGraphics.setGeometry(QtCore.QRect(640, 40, 631, 631))
         self.viewGraphics.setObjectName("viewGraphics")
         self.horizontalLayoutWidget_2 = QtWidgets.QWidget(self.centralwidget)
@@ -395,7 +395,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "vrnImage"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.processToggle.setText(_translate("MainWindow", "Start"))
         self.selectImage.setText(_translate("MainWindow", "Select Image"))
         self.pushButton.setText(_translate("MainWindow", "Download Compressed"))
@@ -453,6 +453,7 @@ class Ui_MainWindow(object):
         self.actionHowTo.setText(_translate("MainWindow", "How To"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionQuit.setText(_translate("MainWindow", "Quit"))
+from qgraphicsviewzoom import QGraphicsViewZoom
 
 
 if __name__ == "__main__":
