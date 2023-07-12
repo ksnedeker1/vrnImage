@@ -30,13 +30,18 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.activeImagePath = None
         self.activeImage = None
 
+        # Demonstrative elements
+        self.firstLoad = True
+        self.demonstrative = True
+        self.toggleDemonstrativeElements.stateChanged.connect(self.toggle_demonstrative_element_generation)
+
     def init_element_states(self):
         """
         Sets default states and contents of various elements.
         """
         self.toggleDemonstrativeElements.setChecked(True)
 
-        self.textDisplay.setHtml(td_welcome_message)
+        self.textDisplay.setHtml(td_welcome)
 
         self.compressionLevelLabel.setVisible(False)
         self.compressionLevelValue.setVisible(False)
@@ -114,6 +119,18 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.mPSNRValue.setVisible(not self.mPSNRValue.isVisible())
             self.line_7.setVisible(not self.line_7.isVisible())
 
+    def toggle_demonstrative_element_generation(self, state):
+        """
+        Toggle whether demonstrative elements will be generated and/or displayed hereafter.
+        """
+        if state == QtCore.Qt.Checked:
+            self.demonstrative = True
+            self.textDisplay.setHtml(td_welcome)
+        else:
+            self.demonstrative = False
+            self.firstLoad = False
+            self.clear_td()
+
     def show_select_image_menu(self):
         """
         Secondary selection for 'Select Image'. User can choose images included with the application, or from their
@@ -180,6 +197,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             if self.activeImagePath is None:
                 self.statusbar.showMessage(*sb_no_image_selected)
                 return
+            self.clear_td()
             self.processActive = not self.processActive
             self.processToggle.setText('Stop')
             self.start_process()
@@ -196,6 +214,11 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         pass
 
+    def clear_td(self):
+        """
+        Clears text display area.
+        """
+        self.textDisplay.setHtml('')
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
