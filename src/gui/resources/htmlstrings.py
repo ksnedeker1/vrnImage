@@ -1,4 +1,4 @@
-td_welcome_message = """
+td_welcome = """
     <h1>Welcome to vrnImage!</h1>
     <p>This is a work-in-progress application which will serve to demonstrate an experimental image
     compression technique using Voronoi diagrams. This area will show explanatory material regarding
@@ -9,4 +9,8 @@ td_welcome_message = """
     compressed.</p>
     <p>If you do not wish to generate and see explanatory elements, uncheck the <i>'Generate Demonstrative 
     Elements'</i> checkbox under <i>'Advanced Settings'</i></p>
+    """
+
+td_image_loaded = """
+    
     """
