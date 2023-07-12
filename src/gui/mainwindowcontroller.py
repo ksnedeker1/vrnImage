@@ -19,7 +19,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Sets default states and contents of various elements.
         """
-        self.toggleDemonstrativeElements.setChecked()
+        self.toggleDemonstrativeElements.setChecked(True)
 
         self.textDisplay.setHtml(td_welcome_message)
 
