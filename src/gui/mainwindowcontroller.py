@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets
 from mainwindow import Ui_MainWindow
+from htmlstrings import *
 
 
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -7,17 +8,21 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         super(MainWindowController, self).__init__(*args, **kwargs)
         self.setupUi(self)
 
+        self.init_element_states()
+
         self.showGeneralSettings.clicked.connect(self.on_click_section_toggle)
         self.showAdvancedSettings.clicked.connect(self.on_click_section_toggle)
         self.showGeneralMetrics.clicked.connect(self.on_click_section_toggle)
         self.showAdvancedMetrics.clicked.connect(self.on_click_section_toggle)
 
-        self.init_element_visibilities()
+    def init_element_states(self):
+        """
+        Sets default states and contents of various elements.
+        """
+        self.toggleDemonstrativeElements.setChecked()
 
-    def init_element_visibilities(self):
-        """
-        Sets default visibility of various elements.
-        """
+        self.textDisplay.setHtml(td_welcome_message)
+
         self.compressionLevelLabel.setVisible(False)
         self.compressionLevelValue.setVisible(False)
         self.edgeStrengthLabel.setVisible(False)
@@ -53,6 +58,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         obj = self.sender()
         # Toggle General Settings section
         if obj is self.showGeneralSettings:
+            button_text = self.showGeneralSettings.text()
+            self.showGeneralSettings.setText(('Hide' if button_text[:4] == 'Show' else 'Show') + button_text[4:])
             self.compressionLevelLabel.setVisible(not self.compressionLevelLabel.isVisible())
             self.compressionLevelValue.setVisible(not self.compressionLevelValue.isVisible())
             self.edgeStrengthLabel.setVisible(not self.edgeStrengthLabel.isVisible())
@@ -61,6 +68,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.colorSalienceValue.setVisible(not self.colorSalienceValue.isVisible())
         # Toggle Advanced Settings section
         elif obj is self.showAdvancedSettings:
+            button_text = self.showAdvancedSettings.text()
+            self.showAdvancedSettings.setText(('Hide' if button_text[:4] == 'Show' else 'Show') + button_text[4:])
             self.samplingUniformityLabel.setVisible(not self.samplingUniformityLabel.isVisible())
             self.samplingUniformityValue.setVisible(not self.samplingUniformityValue.isVisible())
             self.seedLabel.setVisible(not self.seedLabel.isVisible())
@@ -68,6 +77,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.toggleDemonstrativeElements.setVisible(not self.toggleDemonstrativeElements.isVisible())
         # Toggle General Metrics section
         elif obj is self.showGeneralMetrics:
+            button_text = self.showGeneralMetrics.text()
+            self.showGeneralMetrics.setText(('Hide' if button_text[:4] == 'Show' else 'Show') + button_text[4:])
             self.mCompressionRatioLabel.setVisible(not self.mCompressionRatioLabel.isVisible())
             self.mCompressionRatioValue.setVisible(not self.mCompressionRatioValue.isVisible())
             self.mProcessTimeLabel.setVisible(not self.mProcessTimeLabel.isVisible())
@@ -76,6 +87,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.mSSIMValue.setVisible(not self.mSSIMValue.isVisible())
         # Toggle Advanced Metrics section
         elif obj is self.showAdvancedMetrics:
+            button_text = self.showAdvancedMetrics.text()
+            self.showAdvancedMetrics.setText(('Hide' if button_text[:4] == 'Show' else 'Show') + button_text[4:])
             self.mMSELabel.setVisible(not self.mMSELabel.isVisible())
             self.mMSEValue.setVisible(not self.mMSEValue.isVisible())
             self.mPMSELabel.setVisible(not self.mPMSELabel.isVisible())
