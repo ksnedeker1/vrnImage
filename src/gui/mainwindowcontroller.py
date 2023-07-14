@@ -10,8 +10,9 @@ from src.utils.fileio import import_image
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindowController, self).__init__(*args, **kwargs)
-        self.setupUi(self)
 
+        self.setupUi(self)
+        self.setWindowIcon(QtGui.QIcon('./resources/icon.svg'))
         self.init_element_states()
 
         # Section show/hide buttons
@@ -31,7 +32,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.activeImage = None
 
         # Demonstrative elements
-        self.firstLoad = True
         self.demonstrative = True
         self.toggleDemonstrativeElements.stateChanged.connect(self.toggle_demonstrative_element_generation)
 
@@ -39,9 +39,14 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Sets default states and contents of various elements.
         """
+        stylesheet = "./resources/stylesheet.qss"
+        with open(stylesheet, "r") as f:
+            self.setStyleSheet(f.read())
+
         self.toggleDemonstrativeElements.setChecked(True)
 
         self.textDisplay.setHtml(td_welcome)
+        self.textDisplay.setReadOnly(True)
 
         self.compressionLevelLabel.setVisible(False)
         self.compressionLevelValue.setVisible(False)
@@ -128,7 +133,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.textDisplay.setHtml(td_welcome)
         else:
             self.demonstrative = False
-            self.firstLoad = False
             self.clear_td()
 
     def show_select_image_menu(self):
@@ -136,7 +140,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Secondary selection for 'Select Image'. User can choose images included with the application, or from their
         computer.
         """
-        menu = QtWidgets.QMenu()
+        menu = QtWidgets.QMenu(self)
         option1 = QtWidgets.QAction('Choose from examples', self)
         option2 = QtWidgets.QAction('Choose my own', self)
         option1.triggered.connect(self.choose_included_image)
@@ -185,6 +189,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.viewGraphics.setScene(scene)
         self.viewGraphics.fitInView(pixmap_item, mode=QtCore.Qt.KeepAspectRatio)
 
+        if self.demonstrative:
+            pass
+            # TODO: add HTML for load message/info
+
     def process_toggle_handler(self):
         """
         Switch process to opposite current state and call appropriate method.
@@ -219,6 +227,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Clears text display area.
         """
         self.textDisplay.setHtml('')
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
