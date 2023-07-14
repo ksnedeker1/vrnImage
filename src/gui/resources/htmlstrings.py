@@ -1,5 +1,5 @@
 td_welcome = """
-    <h1>Welcome to vrnImage!</h1>
+    <h1>Welcome to vrnImage! <img src="./resources/icon.png" style="float: right" width="128" height="128"></h1>
     <p>This is a work-in-progress application which will serve to demonstrate an experimental image
     compression technique using Voronoi diagrams. This area will show explanatory material regarding
     the compression process, as well as tips, hints, and how-tos.</p>
