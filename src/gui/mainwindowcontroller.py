@@ -181,7 +181,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         list_widget = QtWidgets.QListWidget(images_dialog)
         layout.addWidget(list_widget)
         # Read filenames in images dir and add them to the QList
-        image_directory = "../../images"
+        image_directory = "images"
         image_files = os.listdir(image_directory)
         for name in image_files:
             item = QtWidgets.QListWidgetItem(name)
