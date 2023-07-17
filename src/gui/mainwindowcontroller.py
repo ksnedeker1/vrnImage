@@ -1,6 +1,5 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
-from os.path import expanduser
-
+import os.path
 from mainwindow import Ui_MainWindow
 from resources.htmlstrings import *
 from resources.statusbarmessages import *
@@ -169,16 +168,40 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def choose_included_image(self):
         """
-        TODO: implement selection window/dialog for included images
+        Creates and displays a dialog for the user to select an image included with the application.
+        Loads the image on selection.
         """
-        pass
+        # Create dialog and list widget
+        images_dialog = QtWidgets.QDialog(self)
+        images_dialog.setWindowTitle("Select an example image")
+        images_dialog.resize(400, 300)
+        layout = QtWidgets.QVBoxLayout(images_dialog)
+        list_widget = QtWidgets.QListWidget(images_dialog)
+        layout.addWidget(list_widget)
+        # Read filenames in images dir and add them to the QList
+        image_directory = "../../images"
+        image_files = os.listdir(image_directory)
+        for name in image_files:
+            item = QtWidgets.QListWidgetItem(name)
+            list_widget.addItem(item)
+        load_button = QtWidgets.QPushButton("Load", images_dialog)
+        layout.addWidget(load_button)
+        load_button.clicked.connect(images_dialog.accept)
+        # Show the dialog and wait for the user to press the button
+        if images_dialog.exec() == QtWidgets.QDialog.Accepted:
+            selection = list_widget.currentItem()
+            # Load image on button click
+            if selection:
+                file_name = selection.text()
+                self.activeImagePath = os.path.join(image_directory, file_name)
+                self.load_image()
 
     def choose_image_on_disk(self):
         """
         Launch a file dialog to allow the user to select and image file from their machine.
         """
         # Start the file dialog at the user's home directory, store the path this dialog returns
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose image file...", expanduser("~"))
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose image file...", os.path.expanduser("~"))
         if file_name:
             self.activeImagePath = file_name
             self.load_image()
@@ -191,19 +214,15 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         h, w, _ = self.activeImage.shape
         bytes_per = 3 * w    # 3 color channels
         q_img = QtGui.QImage(self.activeImage.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
-
         # Create a QPixmap from the QImage, add it as a QGraphicsPixmapItem for display in QGraphicsView
         pixmap = QtGui.QPixmap.fromImage(q_img)
         pixmap_item = QtWidgets.QGraphicsPixmapItem(pixmap)
-
         # Create a QGraphicsScene, add QGraphicsPixmapItem
         scene = QtWidgets.QGraphicsScene()
         scene.addItem(pixmap_item)
-
         # Set scene in the QGraphicsView and scale
         self.viewGraphics.setScene(scene)
         self.viewGraphics.fitInView(pixmap_item, mode=QtCore.Qt.KeepAspectRatio)
-
         if self.demonstrative:
             pass
             # TODO: add HTML for load message/info
