@@ -1,9 +1,11 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
+from os.path import expanduser
+
 from mainwindow import Ui_MainWindow
 from resources.htmlstrings import *
 from resources.statusbarmessages import *
-from os.path import expanduser
 from src.utils.fileio import import_image
+from src.compression.compressionparams import CompressionParams
 # from src.process.image_formatting import rgb_to_cielab
 
 
@@ -13,6 +15,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon('./resources/icon.svg'))
+
+        self.paramInputs = [self.compressionLevelValue, self.edgeStrengthValue, self.colorSalienceValue,
+                            self.samplingUniformityValue, self.seedValue]
+
         self.init_element_states()
 
         # Section show/hide buttons
@@ -39,15 +45,19 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Sets default states and contents of various elements.
         """
+        # Set stylesheet
         stylesheet = "./resources/stylesheet.qss"
         with open(stylesheet, "r") as f:
             self.setStyleSheet(f.read())
 
+        # Set default "Generate Demonstrative Elements" checkbox state
         self.toggleDemonstrativeElements.setChecked(True)
 
+        # Set initial textDisplay contents and state
         self.textDisplay.setHtml(td_welcome)
         self.textDisplay.setReadOnly(True)
 
+        # Set default visibility of parameters and metrics
         self.compressionLevelLabel.setVisible(False)
         self.compressionLevelValue.setVisible(False)
         self.edgeStrengthLabel.setVisible(False)
@@ -74,6 +84,11 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.mPSNRLabel.setVisible(False)
         self.mPSNRValue.setVisible(False)
         self.line_7.setVisible(False)
+
+        # Set validators for parameter entry QLineEdits
+        for widget in self.paramInputs[:-1]:
+            widget.setValidator(QtGui.QDoubleValidator(0.0, 1.0, 2))
+        self.seedValue.setValidator(QtGui.QDoubleValidator(0, 999999999, 0))
 
     def on_click_section_toggle(self):
         """
@@ -202,15 +217,39 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.stop_process()
             self.processToggle.setText('Start')
         else:
+            # Check a path was actually selected before the user exited the dialog
             if self.activeImagePath is None:
                 self.statusbar.showMessage(*sb_no_image_selected)
                 return
+            # Abort start if any parameters are invalid and highlight them
+            invalid_input = False
+            for widget in self.paramInputs:
+                if not widget.hasAcceptableInput():
+                    invalid_input = True
+                    widget.setStyleSheet("border: 1px solid #F83934;")
+                else:
+                    widget.setStyleSheet("")
+            if invalid_input:
+                self.statusbar.showMessage(*sb_invalid_parameters)
+                return
+            try:
+                params = CompressionParams(
+                    float(self.compressionLevelValue.text()),
+                    float(self.edgeStrengthValue.text()),
+                    float(self.colorSalienceValue.text()),
+                    float(self.samplingUniformityValue.text()),
+                    int(self.seedValue.text())
+                )
+            except ValueError:
+                self.statusbar.showMessage(*sb_invalid_parameters)
+                return
+            # Update GUI elements and call start_process()
             self.clear_td()
             self.processActive = not self.processActive
             self.processToggle.setText('Stop')
-            self.start_process()
+            self.start_process(params)
 
-    def start_process(self):
+    def start_process(self, params: CompressionParams):
         """
         TODO: handle compression process init
         """
