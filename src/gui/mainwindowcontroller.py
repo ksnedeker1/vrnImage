@@ -5,7 +5,6 @@ from src.gui.resources.htmlstrings import *
 from src.gui.resources.statusbarmessages import *
 from src.utils.fileio import import_image
 from src.compression.compressionparams import CompressionParams
-# from src.process.image_formatting import rgb_to_cielab
 
 
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -294,7 +293,3 @@ def start_gui():
     window = MainWindowController()
     window.show()
     app.exec_()
-
-
-if __name__ == '__main__':
-    start_gui()
