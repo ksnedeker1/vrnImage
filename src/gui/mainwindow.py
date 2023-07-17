@@ -453,7 +453,7 @@ class Ui_MainWindow(object):
         self.actionHowTo.setText(_translate("MainWindow", "How To"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionQuit.setText(_translate("MainWindow", "Quit"))
-from qgraphicsviewzoom import QGraphicsViewZoom
+from src.gui.qgraphicsviewzoom import QGraphicsViewZoom
 
 
 if __name__ == "__main__":

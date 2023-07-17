@@ -1,8 +1,8 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os.path
-from mainwindow import Ui_MainWindow
-from resources.htmlstrings import *
-from resources.statusbarmessages import *
+from src.gui.mainwindow import Ui_MainWindow
+from src.gui.resources.htmlstrings import *
+from src.gui.resources.statusbarmessages import *
 from src.utils.fileio import import_image
 from src.compression.compressionparams import CompressionParams
 # from src.process.image_formatting import rgb_to_cielab
@@ -13,7 +13,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         super(MainWindowController, self).__init__(*args, **kwargs)
 
         self.setupUi(self)
-        self.setWindowIcon(QtGui.QIcon('./resources/icon.svg'))
+        self.setWindowIcon(QtGui.QIcon('./src/resources/icon.svg'))
 
         self.paramInputs = [self.compressionLevelValue, self.edgeStrengthValue, self.colorSalienceValue,
                             self.samplingUniformityValue, self.seedValue]
@@ -45,7 +45,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Sets default states and contents of various elements.
         """
         # Set stylesheet
-        stylesheet = "./resources/stylesheet.qss"
+        stylesheet = "./src/gui/resources/stylesheet.qss"
         with open(stylesheet, "r") as f:
             self.setStyleSheet(f.read())
 
@@ -84,10 +84,12 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.mPSNRValue.setVisible(False)
         self.line_7.setVisible(False)
 
-        # Set validators for parameter entry QLineEdits
+        # Set validators and default values for parameter entry QLineEdits
         for widget in self.paramInputs[:-1]:
             widget.setValidator(QtGui.QDoubleValidator(0.0, 1.0, 2))
+            widget.setText('1.0')
         self.seedValue.setValidator(QtGui.QDoubleValidator(0, 999999999, 0))
+        self.seedValue.setText('0')
 
     def on_click_section_toggle(self):
         """
@@ -287,8 +289,12 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.textDisplay.setHtml('')
 
 
-if __name__ == '__main__':
+def start_gui():
     app = QtWidgets.QApplication([])
     window = MainWindowController()
     window.show()
     app.exec_()
+
+
+if __name__ == '__main__':
+    start_gui()
