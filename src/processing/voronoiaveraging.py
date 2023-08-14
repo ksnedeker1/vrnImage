@@ -37,5 +37,5 @@ def voronoi_average_color_by_cell(img, vor):
             color_sums[idx] += img[i, j]
             counts[idx] += 1
     # Use the color value accumulator and counts to find averages for each region.
-    averages = [color_sum / count if count != 0 else np.zeros(3) for color_sum, count in zip(color_sums, counts)]
+    averages = [(color_sum / count).astype(np.float32) if count != 0 else np.zeros(3) for color_sum, count in zip(color_sums, counts)]
     return averages
