@@ -1,11 +1,12 @@
 import numpy as np
 import cv2
+import skimage
 
 
 def voronoi_average_color_by_cell(img, vor):
     """
     Find average color of pixels in each Voronoi cell in CIELAB space.
-    :param img: Image to be processed.
+    :param img: RGB image to be processed.
     :param vor: scipy.spatial.Voronoi(sampled coords)
     :returns: List of average colors for coordinate, associated by order with vor.
     """
@@ -37,5 +38,6 @@ def voronoi_average_color_by_cell(img, vor):
             color_sums[idx] += img[i, j]
             counts[idx] += 1
     # Use the color value accumulator and counts to find averages for each region.
-    averages = [(color_sum / count).astype(np.float32) if count != 0 else np.zeros(3) for color_sum, count in zip(color_sums, counts)]
+    averages = [(color_sum / count).astype(np.uint8) if count != 0
+                else np.zeros(3) for color_sum, count in zip(color_sums, counts)]
     return averages
