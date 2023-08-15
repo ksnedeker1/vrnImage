@@ -1,10 +1,18 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os.path
+from scipy.spatial import Voronoi
+
 from src.gui.mainwindow import Ui_MainWindow
 from src.gui.resources.htmlstrings import *
 from src.gui.resources.statusbarmessages import *
-from src.utils.fileio import import_image
+from src.utils.fileio import import_image, array_to_image
+from src.utils.imageformat import rgb_to_cielab
+from src.processing.edgedetection import SobelEdgeDetection
+from src.processing.pointsampling import sample_coordinates
+from src.processing.voronoiaveraging import voronoi_average_color_by_cell, reconstruct_image
 from src.compression.compressionparams import CompressionParams
+from src.compression.vrnfilehandler import store_compressed
+from src.metrics.requester import call_metrics_microservice
 
 
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -32,8 +40,27 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.processToggle.clicked.connect(self.process_toggle_handler)
         self.processActive = False
 
+        self.currDir = os.path.dirname(os.path.abspath(__file__))
+
         self.activeImagePath = None
-        self.activeImage = None
+        self.activeImageRGB = None
+        self.activeImageCIELAB = None
+        self.activeImageHeatmap = None
+        self.activeImageCoords = None
+        self.activeImageVoronoi = None
+        self.activeImageAvgColors = None
+        self.activeImageReconstructed = None
+        self.activeImageReconstructedDir = os.path.abspath(os.path.join(self.currDir, '..', '..', 'images', 'results'))
+        self.activeImageReconstructedFileName = 'result_tmp.jpg'
+
+        if not os.path.isdir(self.activeImageReconstructedDir):
+            os.mkdir(self.activeImageReconstructedDir)
+
+        self.sampleSize = 100000
+        self.linearityPower = 1
+
+        self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
+        self.viewSelector.currentTextChanged.connect(self.update_graphics_view)
 
         # Demonstrative elements
         self.demonstrative = True
@@ -167,6 +194,27 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         global_button_position = self.selectImage.mapToGlobal(QtCore.QPoint(0, button_geometry.height()))
         menu.exec_(global_button_position)
 
+    def update_graphics_view(self):
+        """
+        Updates the contents of the QGraphicsView to the current selection of viewSelector.
+        """
+        current_text = self.viewSelector.currentText()
+        selected_image = self.viewSelectorPathDict.get(current_text, None)
+        if selected_image is None:
+            selected_image = self.activeImageRGB
+        h, w, _ = selected_image.shape
+        bytes_per = 3 * w
+        q_img = QtGui.QImage(selected_image.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
+        pixmap = QtGui.QPixmap.fromImage(q_img)
+        pixmap_item = QtWidgets.QGraphicsPixmapItem(pixmap)
+        # Create a QGraphicsScene, add QGraphicsPixmapItem
+        scene = QtWidgets.QGraphicsScene()
+        scene.addItem(pixmap_item)
+        # Set scene in the QGraphicsView and scale
+        self.viewGraphics.setScene(scene)
+        #self.viewGraphics.scene().clear()
+        self.viewGraphics.fitInView(pixmap_item, mode=QtCore.Qt.KeepAspectRatio)
+
     def choose_included_image(self):
         """
         Creates and displays a dialog for the user to select an image included with the application.
@@ -194,7 +242,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             # Load image on button click
             if selection:
                 file_name = selection.text()
-                self.activeImagePath = os.path.join(image_directory, file_name)
+                self.activeImagePath = os.path.join(self.currDir, '../../images', file_name)
                 self.load_image()
 
     def choose_image_on_disk(self):
@@ -210,11 +258,14 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
     def load_image(self):
         """
         Load the image at path activeImagePath and show it as a preview in the graphics view.
+        TODO: Transfer control of updating current image in view to update_graphics_view(). Instead:
+        update self.viewSelector and call self.update_graphics_view()
         """
-        self.activeImage = import_image(self.activeImagePath)
-        h, w, _ = self.activeImage.shape
+        self.activeImageRGB = import_image(self.activeImagePath)
+        self.activeImageCIELAB = rgb_to_cielab(self.activeImageRGB)
+        h, w, _ = self.activeImageRGB.shape
         bytes_per = 3 * w    # 3 color channels
-        q_img = QtGui.QImage(self.activeImage.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
+        q_img = QtGui.QImage(self.activeImageRGB.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
         # Create a QPixmap from the QImage, add it as a QGraphicsPixmapItem for display in QGraphicsView
         pixmap = QtGui.QPixmap.fromImage(q_img)
         pixmap_item = QtWidgets.QGraphicsPixmapItem(pixmap)
@@ -264,7 +315,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage(*sb_invalid_parameters)
                 return
             # Update GUI elements and call start_process()
-            self.clear_td()
+            # self.clear_td()
             self.processActive = not self.processActive
             self.processToggle.setText('Stop')
             self.start_process(params)
@@ -273,13 +324,51 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         TODO: handle compression process init
         """
-        pass
+        # Gather heatmap
+        det = SobelEdgeDetection()
+        (_, self.activeImageHeatmap), time = det.run(self.activeImageCIELAB)
+        # Sample coords from heatmap
+        self.activeImageCoords = sample_coordinates(self.activeImageHeatmap, self.sampleSize,
+                                                    linearity_power=self.linearityPower)
+        # Get Voronoi diagram
+        self.activeImageVoronoi = Voronoi(self.activeImageCoords)
+        self.activeImageAvgColors = voronoi_average_color_by_cell(self.activeImageRGB, self.activeImageVoronoi)
+        # Store compressed image
+        store_compressed(self.activeImageRGB, self.activeImageVoronoi, self.activeImageAvgColors,
+                         'compressed_image', directory='./')
+        # Reconstruct image
+        self.activeImageReconstructed = reconstruct_image(self.activeImageVoronoi, self.activeImageAvgColors,
+                                                          self.activeImageRGB.shape)
+        # Store in format compatible with microservice
+        array_to_image(self.activeImageReconstructed, self.activeImageReconstructedDir,
+                       self.activeImageReconstructedFileName)
+        # Request metrics for the compression operation
+        image_path1 = os.path.join(self.activeImagePath)
+        image_path2 = os.path.join(self.activeImageReconstructedDir, self.activeImageReconstructedFileName)
+        result = call_metrics_microservice(image_path1, image_path2)
+        _, _, mse, psnr = result.split(',')
+        # Update GUI elements
+        self.update_metrics(mse, psnr)
+        # Reconsider approach to viewSelectorPathDict initialization
+        if self.viewSelectorPathDict['Compressed Image'] is None:
+            self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
+        self.viewSelector.setCurrentIndex(1)
+        self.update_graphics_view()
 
     def stop_process(self):
         """
         TODO: handle compression process cancellation
         """
         pass
+
+    def update_metrics(self, mse, psnr):
+        """
+        Update value labels for metrics display in GUI.
+        """
+        mse = str(round(float(mse), 2))
+        psnr = str(round(float(psnr), 2))
+        self.mMSEValue.setText(mse)
+        self.mPSNRValue.setText(psnr)
 
     def clear_td(self):
         """
