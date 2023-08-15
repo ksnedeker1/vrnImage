@@ -33,19 +33,5 @@ def enqueue_image_quality_metrics():
     return jsonify({'status': 'Task enqueued'})
 
 
-# @app.route('/purge', methods=['POST'])
-# def purge_queue():
-#     # Connect to RabbitMQ server
-#     connection = pika.BlockingConnection(
-#         pika.ConnectionParameters(host='localhost'))
-#     channel = connection.channel()
-#
-#     channel.queue_purge(queue='task_queue')
-#
-#     connection.close()
-#
-#     return jsonify({'status': 'Queue purged'})
-#
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
