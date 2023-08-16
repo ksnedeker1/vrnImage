@@ -1,6 +1,5 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os.path
-from scipy.spatial import Voronoi
 import numpy as np
 
 from src.gui.mainwindow import Ui_MainWindow
@@ -8,11 +7,8 @@ from src.gui.resources.htmlstrings import *
 from src.gui.resources.statusbarmessages import *
 from src.utils.fileio import import_image, array_to_image
 from src.utils.imageformat import rgb_to_cielab
-from src.processing.edgedetection import SobelEdgeDetection
-from src.processing.pointsampling import sample_coordinates
-from src.processing.voronoiaveraging import voronoi_average_color_by_cell, reconstruct_image
 from src.compression.compressionparams import CompressionParams
-from src.compression.vrnfilehandler import vrn_compress
+from src.compression.compressionworker import CompressionWorker
 from src.metrics.requester import call_metrics_microservice
 
 
@@ -61,6 +57,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sampleSize = 100000
         self.linearityPower = 1
         self.seed = None
+
+        self.worker = None
 
         self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
         self.viewSelector.currentIndexChanged.connect(self.update_graphics_view)
@@ -324,23 +322,46 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def start_process(self, params: CompressionParams):
         """
+        Start compression thread and connect signals.
         TODO: handle compression process init
         """
-        # Gather heatmap
-        det = SobelEdgeDetection()
-        (_, self.activeImageHeatmap), time = det.run(self.activeImageCIELAB)
-        # Sample coords from heatmap
-        self.activeImageCoords = sample_coordinates(self.activeImageHeatmap, self.sampleSize,
-                                                    linearity_power=self.linearityPower, seed=self.seed)
-        # Get Voronoi diagram
-        self.activeImageVoronoi = Voronoi(self.activeImageCoords)
-        self.activeImageAvgColors = voronoi_average_color_by_cell(self.activeImageRGB, self.activeImageVoronoi)
-        # Store compressed image
-        vrn_compress(self.activeImageRGB, self.activeImageVoronoi, self.activeImageAvgColors,
-                         'compressed_image', directory='./')
-        # Reconstruct image
-        self.activeImageReconstructed = reconstruct_image(self.activeImageVoronoi, self.activeImageAvgColors,
-                                                          self.activeImageRGB.shape)
+        self.worker = CompressionWorker(self.activeImageRGB, self.activeImageCIELAB, self.sampleSize,
+                                        self.linearityPower, self.seed)
+        self.worker.heatmap_ready.connect(self.on_heatmap_ready)
+        self.worker.coords_ready.connect(self.on_coords_ready)
+        self.worker.voronoi_ready.connect(self.on_voronoi_ready)
+        self.worker.image_reconstructed.connect(self.on_image_reconstructed)
+        self.worker.start()
+
+    def stop_process(self):
+        """
+        TODO: handle compression process cancellation
+        """
+        pass
+
+    def on_heatmap_ready(self, heatmap):
+        """
+        Handle heatmap_ready signal
+        """
+        self.activeImageHeatmap = heatmap
+
+    def on_coords_ready(self, coords):
+        """
+        Handle coords_ready signal
+        """
+        self.activeImageCoords = coords
+
+    def on_voronoi_ready(self, voronoi):
+        """
+        Handle voronoi_ready signal
+        """
+        self.activeImageVoronoi = voronoi
+
+    def on_image_reconstructed(self, image):
+        """
+        Handle image_reconstructed signal
+        """
+        self.activeImageReconstructed = image
         # Store in format compatible with microservice
         array_to_image(self.activeImageReconstructed, self.activeImageReconstructedDir,
                        self.activeImageReconstructedFileName)
@@ -354,13 +375,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         # Reconsider approach to viewSelectorPathDict initialization
         self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
         self.viewSelector.setCurrentIndex(1)
+        print('done')
         self.update_graphics_view()
-
-    def stop_process(self):
-        """
-        TODO: handle compression process cancellation
-        """
-        pass
 
     def update_metrics(self, mse, psnr):
         """
