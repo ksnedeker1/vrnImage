@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'image_compression3.ui'
+# Form implementation generated from reading ui file 'image_compression4.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -40,8 +40,6 @@ class Ui_MainWindow(object):
         self.processControlsLayout.addWidget(self.pushButton)
         self.viewSelector = QtWidgets.QComboBox(self.horizontalLayoutWidget)
         self.viewSelector.setObjectName("viewSelector")
-        self.viewSelector.addItem("")
-        self.viewSelector.addItem("")
         self.viewSelector.addItem("")
         self.viewSelector.addItem("")
         self.viewSelector.addItem("")
@@ -506,11 +504,9 @@ class Ui_MainWindow(object):
         self.viewSelector.setToolTip(_translate("MainWindow", "<html><head/><body><p><br/></p></body></html>"))
         self.viewSelector.setItemText(0, _translate("MainWindow", "Original Image"))
         self.viewSelector.setItemText(1, _translate("MainWindow", "Compressed Image"))
-        self.viewSelector.setItemText(2, _translate("MainWindow", "Heatmap (Edge Strength)"))
-        self.viewSelector.setItemText(3, _translate("MainWindow", "Heatmap (Color Salience)"))
-        self.viewSelector.setItemText(4, _translate("MainWindow", "Heatmap (Combined)"))
-        self.viewSelector.setItemText(5, _translate("MainWindow", "Delaunay Triangulation"))
-        self.viewSelector.setItemText(6, _translate("MainWindow", "Voronoi Diagram"))
+        self.viewSelector.setItemText(2, _translate("MainWindow", "Heatmap"))
+        self.viewSelector.setItemText(3, _translate("MainWindow", "Sampled Points"))
+        self.viewSelector.setItemText(4, _translate("MainWindow", "Voronoi Diagram"))
         self.textDisplay.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
