@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 import os.path
 from scipy.spatial import Voronoi
+import numpy as np
 
 from src.gui.mainwindow import Ui_MainWindow
 from src.gui.resources.htmlstrings import *
@@ -117,7 +118,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             widget.setValidator(QtGui.QDoubleValidator(0.0, 1.0, 2))
             widget.setText('1.0')
         self.seedValue.setValidator(QtGui.QDoubleValidator(0, 999999999, 0))
-        self.seedValue.setText('0')
+        self.seedValue.setText(str(np.random.randint(0, 9999)))
 
     def on_click_section_toggle(self):
         """
@@ -202,8 +203,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         current_text = self.viewSelector.currentText()
         selected_image = self.viewSelectorPathDict.get(current_text, None)
+        # Handle selections with no associated image
         if selected_image is None:
-            self.viewGraphics.scene().clear()
+            if self.viewGraphics.scene():
+                self.viewGraphics.scene().clear()
             return
         h, w, _ = selected_image.shape
         bytes_per = 3 * w
