@@ -11,7 +11,7 @@ from src.processing.edgedetection import SobelEdgeDetection
 from src.processing.pointsampling import sample_coordinates
 from src.processing.voronoiaveraging import voronoi_average_color_by_cell, reconstruct_image
 from src.compression.compressionparams import CompressionParams
-from src.compression.vrnfilehandler import store_compressed
+from src.compression.vrnfilehandler import vrn_compress
 from src.metrics.requester import call_metrics_microservice
 
 
@@ -56,11 +56,13 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         if not os.path.isdir(self.activeImageReconstructedDir):
             os.mkdir(self.activeImageReconstructedDir)
 
+        # TODO: Merge and convert to CompressionParams object
         self.sampleSize = 100000
         self.linearityPower = 1
+        self.seed = None
 
         self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
-        self.viewSelector.currentTextChanged.connect(self.update_graphics_view)
+        self.viewSelector.currentIndexChanged.connect(self.update_graphics_view)
 
         # Demonstrative elements
         self.demonstrative = True
@@ -201,7 +203,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         current_text = self.viewSelector.currentText()
         selected_image = self.viewSelectorPathDict.get(current_text, None)
         if selected_image is None:
-            selected_image = self.activeImageRGB
+            self.viewGraphics.scene().clear()
+            return
         h, w, _ = selected_image.shape
         bytes_per = 3 * w
         q_img = QtGui.QImage(selected_image.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
@@ -243,7 +246,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             if selection:
                 file_name = selection.text()
                 self.activeImagePath = os.path.join(self.currDir, '../../images', file_name)
-                self.load_image()
+                self.activeImageRGB = import_image(self.activeImagePath)
+                self.activeImageCIELAB = rgb_to_cielab(self.activeImageRGB)
+                self.viewSelectorPathDict['Original Image'] = self.activeImageRGB
+                self.load_image(0)
 
     def choose_image_on_disk(self):
         """
@@ -253,28 +259,21 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose image file...", os.path.expanduser("~"))
         if file_name:
             self.activeImagePath = file_name
-            self.load_image()
+            self.activeImageRGB = import_image(self.activeImagePath)
+            self.activeImageCIELAB = rgb_to_cielab(self.activeImageRGB)
+            self.viewSelectorPathDict['Original Image'] = self.activeImageRGB
+            self.load_image(0)
 
-    def load_image(self):
+    def load_image(self, idx):
         """
         Load the image at path activeImagePath and show it as a preview in the graphics view.
         TODO: Transfer control of updating current image in view to update_graphics_view(). Instead:
         update self.viewSelector and call self.update_graphics_view()
         """
-        self.activeImageRGB = import_image(self.activeImagePath)
-        self.activeImageCIELAB = rgb_to_cielab(self.activeImageRGB)
-        h, w, _ = self.activeImageRGB.shape
-        bytes_per = 3 * w    # 3 color channels
-        q_img = QtGui.QImage(self.activeImageRGB.data, w, h, bytes_per, QtGui.QImage.Format_RGB888)
-        # Create a QPixmap from the QImage, add it as a QGraphicsPixmapItem for display in QGraphicsView
-        pixmap = QtGui.QPixmap.fromImage(q_img)
-        pixmap_item = QtWidgets.QGraphicsPixmapItem(pixmap)
-        # Create a QGraphicsScene, add QGraphicsPixmapItem
-        scene = QtWidgets.QGraphicsScene()
-        scene.addItem(pixmap_item)
-        # Set scene in the QGraphicsView and scale
-        self.viewGraphics.setScene(scene)
-        self.viewGraphics.fitInView(pixmap_item, mode=QtCore.Qt.KeepAspectRatio)
+        old_idx = self.viewSelector.currentIndex()
+        self.viewSelector.setCurrentIndex(idx)
+        if old_idx == idx:
+            self.update_graphics_view()
         if self.demonstrative:
             pass
             # TODO: add HTML for load message/info
@@ -329,12 +328,12 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         (_, self.activeImageHeatmap), time = det.run(self.activeImageCIELAB)
         # Sample coords from heatmap
         self.activeImageCoords = sample_coordinates(self.activeImageHeatmap, self.sampleSize,
-                                                    linearity_power=self.linearityPower)
+                                                    linearity_power=self.linearityPower, seed=self.seed)
         # Get Voronoi diagram
         self.activeImageVoronoi = Voronoi(self.activeImageCoords)
         self.activeImageAvgColors = voronoi_average_color_by_cell(self.activeImageRGB, self.activeImageVoronoi)
         # Store compressed image
-        store_compressed(self.activeImageRGB, self.activeImageVoronoi, self.activeImageAvgColors,
+        vrn_compress(self.activeImageRGB, self.activeImageVoronoi, self.activeImageAvgColors,
                          'compressed_image', directory='./')
         # Reconstruct image
         self.activeImageReconstructed = reconstruct_image(self.activeImageVoronoi, self.activeImageAvgColors,
@@ -350,8 +349,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         # Update GUI elements
         self.update_metrics(mse, psnr)
         # Reconsider approach to viewSelectorPathDict initialization
-        if self.viewSelectorPathDict['Compressed Image'] is None:
-            self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
+        self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
         self.viewSelector.setCurrentIndex(1)
         self.update_graphics_view()
 
