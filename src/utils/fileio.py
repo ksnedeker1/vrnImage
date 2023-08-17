@@ -24,11 +24,10 @@ def import_image(path: str):
         raise ImagePathError(path)
     # Open image with PIL
     image = Image.open(path)
+    image_rgb = image.convert('RGB')
     # Remove alpha channel if png
     # TODO: handle png alpha channel
-    if path[-3:] == 'png':
-        return np.array(image)[:,:,:3]
-    return np.array(image)
+    return np.array(image_rgb)
 
 
 def array_to_image(img_array, path='./images/results', filename='result_tmp.jpg'):
