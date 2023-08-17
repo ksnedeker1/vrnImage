@@ -223,7 +223,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         scene.addItem(pixmap_item)
         # Set scene in the QGraphicsView and scale
         self.viewGraphics.setScene(scene)
-        #self.viewGraphics.scene().clear()
         self.viewGraphics.fitInView(pixmap_item, mode=QtCore.Qt.KeepAspectRatio)
 
     def choose_included_image(self):
@@ -332,17 +331,26 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Start compression thread and connect signals.
         TODO: handle compression process init
         """
+        # Spawn CompressionWorker
         self.compression_worker = CompressionWorker(self.activeImageRGB, self.activeImageCIELAB, self.sampleSize,
                                                     self.linearityPower, self.seed)
+        # Connect response signals
         self.compression_worker.heatmap_ready.connect(self.on_heatmap_ready)
         self.compression_worker.coords_ready.connect(self.on_coords_ready)
         self.compression_worker.voronoi_ready.connect(self.on_voronoi_ready)
         self.compression_worker.image_reconstructed.connect(self.on_image_reconstructed)
         self.compression_worker.start()
-        self.demonstration_worker = DemonstrationWorker(self.activeImageRGB)
+
+        # Spawn DemonstrationWorker
+        self.demonstration_worker = DemonstrationWorker(self.activeImageRGB.shape)
+        # Connect request signals
         self.dw_on_heatmap_ready.connect(self.demonstration_worker.handle_heatmap)
         self.dw_on_coords_ready.connect(self.demonstration_worker.handle_coords)
         self.dw_on_voronoi_ready.connect(self.demonstration_worker.handle_voronoi)
+        # Connect response signals
+        self.demonstration_worker.heatmap_converted.connect(self.on_heatmap_converted)
+        self.demonstration_worker.coords_converted.connect(self.on_coords_converted)
+        self.demonstration_worker.voronoi_converted.connect(self.on_voronoi_converted)
         self.demonstration_worker.start()
 
     def stop_process(self):
@@ -390,6 +398,19 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.viewSelector.setCurrentIndex(1)
         print('done')
         self.update_graphics_view()
+
+    def on_heatmap_converted(self, heatmap_img):
+        self.viewSelectorPathDict['Heatmap'] = heatmap_img
+        self.load_image(2)
+
+    def on_coords_converted(self, coords_img):
+        self.viewSelectorPathDict['Sampled Points'] = coords_img
+        self.load_image(3)
+
+    def on_voronoi_converted(self, voronoi_img):
+        self.viewSelectorPathDict['Voronoi Diagram'] = voronoi_img
+        self.load_image(4)
+
 
     def update_metrics(self, mse, psnr):
         """
