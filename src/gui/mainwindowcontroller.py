@@ -7,12 +7,17 @@ from src.gui.resources.htmlstrings import *
 from src.gui.resources.statusbarmessages import *
 from src.utils.fileio import import_image, array_to_image
 from src.utils.imageformat import rgb_to_cielab
+from src.processing.demonstrationworker import DemonstrationWorker
 from src.compression.compressionparams import CompressionParams
 from src.compression.compressionworker import CompressionWorker
 from src.metrics.requester import call_metrics_microservice
 
 
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
+    dw_on_heatmap_ready = QtCore.pyqtSignal(object)
+    dw_on_coords_ready = QtCore.pyqtSignal(object)
+    dw_on_voronoi_ready = QtCore.pyqtSignal(object)
+
     def __init__(self, *args, **kwargs):
         super(MainWindowController, self).__init__(*args, **kwargs)
 
@@ -55,10 +60,12 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # TODO: Merge and convert to CompressionParams object
         self.sampleSize = 100000
-        self.linearityPower = 1
+        self.linearityPower = 1.5
         self.seed = None
 
-        self.worker = None
+        # Class members to avoid garbage collection while thread is still running
+        self.compression_worker = None
+        self.demonstration_worker = None
 
         self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
         self.viewSelector.currentIndexChanged.connect(self.update_graphics_view)
@@ -325,13 +332,18 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Start compression thread and connect signals.
         TODO: handle compression process init
         """
-        self.worker = CompressionWorker(self.activeImageRGB, self.activeImageCIELAB, self.sampleSize,
-                                        self.linearityPower, self.seed)
-        self.worker.heatmap_ready.connect(self.on_heatmap_ready)
-        self.worker.coords_ready.connect(self.on_coords_ready)
-        self.worker.voronoi_ready.connect(self.on_voronoi_ready)
-        self.worker.image_reconstructed.connect(self.on_image_reconstructed)
-        self.worker.start()
+        self.compression_worker = CompressionWorker(self.activeImageRGB, self.activeImageCIELAB, self.sampleSize,
+                                                    self.linearityPower, self.seed)
+        self.compression_worker.heatmap_ready.connect(self.on_heatmap_ready)
+        self.compression_worker.coords_ready.connect(self.on_coords_ready)
+        self.compression_worker.voronoi_ready.connect(self.on_voronoi_ready)
+        self.compression_worker.image_reconstructed.connect(self.on_image_reconstructed)
+        self.compression_worker.start()
+        self.demonstration_worker = DemonstrationWorker(self.activeImageRGB)
+        self.dw_on_heatmap_ready.connect(self.demonstration_worker.handle_heatmap)
+        self.dw_on_coords_ready.connect(self.demonstration_worker.handle_coords)
+        self.dw_on_voronoi_ready.connect(self.demonstration_worker.handle_voronoi)
+        self.demonstration_worker.start()
 
     def stop_process(self):
         """
@@ -343,19 +355,20 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Handle heatmap_ready signal
         """
-        self.activeImageHeatmap = heatmap
+        self.dw_on_heatmap_ready.emit(heatmap)
 
     def on_coords_ready(self, coords):
         """
         Handle coords_ready signal
         """
-        self.activeImageCoords = coords
+        print('here')
+        self.dw_on_coords_ready.emit(coords)
 
     def on_voronoi_ready(self, voronoi):
         """
         Handle voronoi_ready signal
         """
-        self.activeImageVoronoi = voronoi
+        self.dw_on_voronoi_ready.emit(voronoi)
 
     def on_image_reconstructed(self, image):
         """
