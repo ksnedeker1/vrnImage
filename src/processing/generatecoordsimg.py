@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def generate_coords_img(img_rgb, coords):
+def generate_coords_img(shape, coords):
     """
     Create an array representing an RGB image with pixels colored based on their
     proximity to a point in coords.
@@ -12,7 +12,7 @@ def generate_coords_img(img_rgb, coords):
     gray2 = np.array([63, 63, 63], dtype=np.uint8)
     gray3 = np.array([35, 35, 35], dtype=np.uint8)
     # Create output array
-    result = np.zeros_like(img_rgb)
+    result = np.zeros(shape, dtype=np.uint8)
     # Create a binary mask, this will be used to shade points in coords and neighbors
     # initialize with all points in coords set to 1
     mask = np.zeros(result.shape[:2], dtype=np.uint8)
