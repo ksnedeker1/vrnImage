@@ -72,6 +72,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.mPSNRValue.setVisible(False)
         self.line_7.setVisible(False)
         # Set validators and default values for parameter entry QLineEdits
+        self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
+                            self.samplingLinearityValue, self.seedValue]
         for widget in self.paramInputs[:-1]:
             widget.setValidator(QtGui.QDoubleValidator(0.0, 1.0, 2))
             widget.setText('1.0')
@@ -118,9 +120,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.activeImageReconstructedFileName = 'result_tmp.jpg'
         if not os.path.isdir(self.activeImageReconstructedDir):
             os.mkdir(self.activeImageReconstructedDir)
-        # Initialize CompressionParams object and store input elements
-        self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
-                            self.samplingLinearityValue, self.seedValue]
+        # Initialize CompressionParams object
         self.currParams = CompressionParams(*[None for _ in self.paramInputs])
 
     def init_demonstrative_elements(self):
