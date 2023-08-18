@@ -25,9 +25,11 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon('./src/resources/icon.svg'))
+        self.testMsg = 'TEST ========================='
 
         self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
                             self.samplingLinearityValue, self.seedValue]
+        self.currParams = CompressionParams(*[None for _ in self.paramInputs])
 
         self.init_element_states()
 
@@ -318,9 +320,12 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Switch process to opposite current state and call appropriate method.
         """
+        # Handle process termination
         if self.processActive:
             self.processActive = False
             self.processToggle.setText('Start')
+            self.statusbar.showMessage(*sb_stop_process)
+        # Handle process initiation
         else:
             # Check a path was actually selected before the user exited the dialog
             if self.activeImagePath is None:
@@ -345,6 +350,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
                     float(self.samplingLinearityValue.text()),
                     int(self.seedValue.text())
                 )
+                self.currParams = params
             except ValueError:
                 self.statusbar.showMessage(*sb_invalid_parameters)
                 return
@@ -358,7 +364,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Start compression thread and connect signals.
         """
-        self.processActive = True
+        self.statusbar.showMessage(
+            sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
+                                     samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
+                                     task=sb_task_heatmap))
         # Send CompressionWorker current images and params
         self.cw_set_params.emit(self.activeImageRGB, self.activeImageCIELAB, params)
         self.compression_worker.start()
@@ -372,6 +381,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         if self.processActive:
             self.dw_on_heatmap_ready.emit(heatmap)
+            self.statusbar.showMessage(
+                sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
+                                         samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
+                                         task=sb_task_coords))
 
     def on_coords_ready(self, coords):
         """
@@ -379,6 +392,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         if self.processActive:
             self.dw_on_coords_ready.emit(coords)
+            self.statusbar.showMessage(
+                sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
+                                         samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
+                                         task=sb_task_voronoi))
 
     def on_voronoi_ready(self, voronoi):
         """
@@ -386,10 +403,14 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         if self.processActive:
             self.dw_on_voronoi_ready.emit(voronoi)
+            self.statusbar.showMessage(
+                sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
+                                         samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
+                                         task=sb_task_reconstruct))
 
     def on_image_reconstructed(self, image):
         """
-        Handle image_reconstructed signal
+        Handle image_reconstructed signal, update GUI (process finished).
         """
         if self.processActive:
             self.activeImageReconstructed = image
@@ -406,7 +427,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             # Reconsider approach to viewSelectorPathDict initialization
             self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
             self.viewSelector.setCurrentIndex(1)
-            print('done')
             self.processActive = False
             self.processToggle.setText('Start')
             self.update_graphics_view()
