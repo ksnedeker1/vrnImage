@@ -1,4 +1,5 @@
 import struct
+import os
 
 
 def vrn_compress(img, vor, averages, filename, directory='./'):
@@ -12,8 +13,10 @@ def vrn_compress(img, vor, averages, filename, directory='./'):
     for coord, avg in zip(vor.points, averages):
         # little-endian, 2x unsigned short (max dim.: 65535), 3x unsigned char (1 byte int, RGB in [0, 255])
         data.append(struct.pack('<HHBBB', int(coord[0]), int(coord[1]), int(avg[0]), int(avg[1]), int(avg[2])))
-    with open(f"{directory}/{filename}.vrn", 'wb') as f:
+    file_path = f"{directory}/{filename}.vrn"
+    with open(file_path, 'wb') as f:
         f.write(b''.join(data))
+    return os.path.getsize(file_path)
 
 
 def vrn_decompress(filename, directory='./'):
