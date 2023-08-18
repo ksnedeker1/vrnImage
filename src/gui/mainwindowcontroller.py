@@ -14,6 +14,8 @@ from src.metrics.requester import call_metrics_microservice
 
 
 class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
+    cw_set_params = QtCore.pyqtSignal(object, object, object)
+    dw_set_shape = QtCore.pyqtSignal(object)
     dw_on_heatmap_ready = QtCore.pyqtSignal(object)
     dw_on_coords_ready = QtCore.pyqtSignal(object)
     dw_on_voronoi_ready = QtCore.pyqtSignal(object)
@@ -24,8 +26,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon('./src/resources/icon.svg'))
 
-        self.paramInputs = [self.compressionLevelValue, self.edgeStrengthValue, self.colorSalienceValue,
-                            self.samplingUniformityValue, self.seedValue]
+        self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
+                            self.samplingLinearityValue, self.seedValue]
 
         self.init_element_states()
 
@@ -63,9 +65,9 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.linearityPower = 1.5
         self.seed = None
 
-        # Class members to avoid garbage collection while thread is still running
-        self.compression_worker = None
-        self.demonstration_worker = None
+        # Init CompressionWorker and DemonstrationWorker
+        self.init_compression_worker()
+        self.init_demonstration_worker()
 
         self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
         self.viewSelector.currentIndexChanged.connect(self.update_graphics_view)
@@ -91,14 +93,14 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.textDisplay.setReadOnly(True)
 
         # Set default visibility of parameters and metrics
-        self.compressionLevelLabel.setVisible(False)
-        self.compressionLevelValue.setVisible(False)
+        self.samplesLabel.setVisible(False)
+        self.samplesValue.setVisible(False)
         self.edgeStrengthLabel.setVisible(False)
         self.edgeStrengthValue.setVisible(False)
         self.colorSalienceLabel.setVisible(False)
         self.colorSalienceValue.setVisible(False)
-        self.samplingUniformityLabel.setVisible(False)
-        self.samplingUniformityValue.setVisible(False)
+        self.samplingLinearityLabel.setVisible(False)
+        self.samplingLinearityValue.setVisible(False)
         self.seedLabel.setVisible(False)
         self.seedValue.setVisible(False)
         self.toggleDemonstrativeElements.setVisible(False)
@@ -122,8 +124,34 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         for widget in self.paramInputs[:-1]:
             widget.setValidator(QtGui.QDoubleValidator(0.0, 1.0, 2))
             widget.setText('1.0')
+        self.samplesValue.setValidator(QtGui.QDoubleValidator(3, 1000000, 0))
+        self.samplesValue.setText('100000')
+        self.samplingLinearityValue.setValidator(QtGui.QDoubleValidator(0.01, 10.0, 2))
+        self.samplingLinearityValue.setText('1.0')
         self.seedValue.setValidator(QtGui.QDoubleValidator(0, 999999999, 0))
         self.seedValue.setText(str(np.random.randint(0, 9999)))
+
+    def init_compression_worker(self):
+        self.compression_worker = CompressionWorker()
+        # Request signal
+        self.cw_set_params.connect(self.compression_worker.set_params)
+        # Response signals
+        self.compression_worker.heatmap_ready.connect(self.on_heatmap_ready)
+        self.compression_worker.coords_ready.connect(self.on_coords_ready)
+        self.compression_worker.voronoi_ready.connect(self.on_voronoi_ready)
+        self.compression_worker.image_reconstructed.connect(self.on_image_reconstructed)
+
+    def init_demonstration_worker(self):
+        self.demonstration_worker = DemonstrationWorker()
+        # Request signals
+        self.dw_set_shape.connect(self.demonstration_worker.set_image_shape)
+        self.dw_on_heatmap_ready.connect(self.demonstration_worker.handle_heatmap)
+        self.dw_on_coords_ready.connect(self.demonstration_worker.handle_coords)
+        self.dw_on_voronoi_ready.connect(self.demonstration_worker.handle_voronoi)
+        # Response signals
+        self.demonstration_worker.heatmap_converted.connect(self.on_heatmap_converted)
+        self.demonstration_worker.coords_converted.connect(self.on_coords_converted)
+        self.demonstration_worker.voronoi_converted.connect(self.on_voronoi_converted)
 
     def on_click_section_toggle(self):
         """
@@ -135,18 +163,19 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         if obj is self.showGeneralSettings:
             button_text = self.showGeneralSettings.text()
             self.showGeneralSettings.setText(('Hide' if button_text[:4] == 'Show' else 'Show') + button_text[4:])
-            self.compressionLevelLabel.setVisible(not self.compressionLevelLabel.isVisible())
-            self.compressionLevelValue.setVisible(not self.compressionLevelValue.isVisible())
+            self.samplesLabel.setVisible(not self.samplesLabel.isVisible())
+            self.samplesValue.setVisible(not self.samplesValue.isVisible())
+            self.samplingLinearityLabel.setVisible(not self.samplingLinearityLabel.isVisible())
+            self.samplingLinearityValue.setVisible(not self.samplingLinearityValue.isVisible())
             self.edgeStrengthLabel.setVisible(not self.edgeStrengthLabel.isVisible())
             self.edgeStrengthValue.setVisible(not self.edgeStrengthValue.isVisible())
-            self.colorSalienceLabel.setVisible(not self.colorSalienceLabel.isVisible())
-            self.colorSalienceValue.setVisible(not self.colorSalienceValue.isVisible())
+
         # Toggle Advanced Settings section
         elif obj is self.showAdvancedSettings:
             button_text = self.showAdvancedSettings.text()
             self.showAdvancedSettings.setText(('Hide' if button_text[:4] == 'Show' else 'Show') + button_text[4:])
-            self.samplingUniformityLabel.setVisible(not self.samplingUniformityLabel.isVisible())
-            self.samplingUniformityValue.setVisible(not self.samplingUniformityValue.isVisible())
+            self.colorSalienceLabel.setVisible(not self.colorSalienceLabel.isVisible())
+            self.colorSalienceValue.setVisible(not self.colorSalienceValue.isVisible())
             self.seedLabel.setVisible(not self.seedLabel.isVisible())
             self.seedValue.setVisible(not self.seedValue.isVisible())
             self.toggleDemonstrativeElements.setVisible(not self.toggleDemonstrativeElements.isVisible())
@@ -290,8 +319,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Switch process to opposite current state and call appropriate method.
         """
         if self.processActive:
-            self.processActive = not self.processActive
-            self.stop_process()
+            self.processActive = False
             self.processToggle.setText('Start')
         else:
             # Check a path was actually selected before the user exited the dialog
@@ -311,10 +339,10 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
                 return
             try:
                 params = CompressionParams(
-                    float(self.compressionLevelValue.text()),
+                    int(self.samplesValue.text()),
                     float(self.edgeStrengthValue.text()),
                     float(self.colorSalienceValue.text()),
-                    float(self.samplingUniformityValue.text()),
+                    float(self.samplingLinearityValue.text()),
                     int(self.seedValue.text())
                 )
             except ValueError:
@@ -322,95 +350,81 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
                 return
             # Update GUI elements and call start_process()
             # self.clear_td()
-            self.processActive = not self.processActive
+            self.processActive = True
             self.processToggle.setText('Stop')
             self.start_process(params)
 
     def start_process(self, params: CompressionParams):
         """
         Start compression thread and connect signals.
-        TODO: handle compression process init
         """
-        # Spawn CompressionWorker
-        self.compression_worker = CompressionWorker(self.activeImageRGB, self.activeImageCIELAB, self.sampleSize,
-                                                    self.linearityPower, self.seed)
-        # Connect response signals
-        self.compression_worker.heatmap_ready.connect(self.on_heatmap_ready)
-        self.compression_worker.coords_ready.connect(self.on_coords_ready)
-        self.compression_worker.voronoi_ready.connect(self.on_voronoi_ready)
-        self.compression_worker.image_reconstructed.connect(self.on_image_reconstructed)
+        self.processActive = True
+        # Send CompressionWorker current images and params
+        self.cw_set_params.emit(self.activeImageRGB, self.activeImageCIELAB, params)
         self.compression_worker.start()
-
-        # Spawn DemonstrationWorker
-        self.demonstration_worker = DemonstrationWorker(self.activeImageRGB.shape)
-        # Connect request signals
-        self.dw_on_heatmap_ready.connect(self.demonstration_worker.handle_heatmap)
-        self.dw_on_coords_ready.connect(self.demonstration_worker.handle_coords)
-        self.dw_on_voronoi_ready.connect(self.demonstration_worker.handle_voronoi)
-        # Connect response signals
-        self.demonstration_worker.heatmap_converted.connect(self.on_heatmap_converted)
-        self.demonstration_worker.coords_converted.connect(self.on_coords_converted)
-        self.demonstration_worker.voronoi_converted.connect(self.on_voronoi_converted)
+        # Send DemonstrationWorker current img shape
+        self.dw_set_shape.emit(self.activeImageRGB.shape)
         self.demonstration_worker.start()
-
-    def stop_process(self):
-        """
-        TODO: handle compression process cancellation
-        """
-        pass
 
     def on_heatmap_ready(self, heatmap):
         """
         Handle heatmap_ready signal
         """
-        self.dw_on_heatmap_ready.emit(heatmap)
+        if self.processActive:
+            self.dw_on_heatmap_ready.emit(heatmap)
 
     def on_coords_ready(self, coords):
         """
         Handle coords_ready signal
         """
-        print('here')
-        self.dw_on_coords_ready.emit(coords)
+        if self.processActive:
+            self.dw_on_coords_ready.emit(coords)
 
     def on_voronoi_ready(self, voronoi):
         """
         Handle voronoi_ready signal
         """
-        self.dw_on_voronoi_ready.emit(voronoi)
+        if self.processActive:
+            self.dw_on_voronoi_ready.emit(voronoi)
 
     def on_image_reconstructed(self, image):
         """
         Handle image_reconstructed signal
         """
-        self.activeImageReconstructed = image
-        # Store in format compatible with microservice
-        array_to_image(self.activeImageReconstructed, self.activeImageReconstructedDir,
-                       self.activeImageReconstructedFileName)
-        # Request metrics for the compression operation
-        image_path1 = os.path.join(self.activeImagePath)
-        image_path2 = os.path.join(self.activeImageReconstructedDir, self.activeImageReconstructedFileName)
-        result = call_metrics_microservice(image_path1, image_path2)
-        _, _, mse, psnr = result.split(',')
-        # Update GUI elements
-        self.update_metrics(mse, psnr)
-        # Reconsider approach to viewSelectorPathDict initialization
-        self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
-        self.viewSelector.setCurrentIndex(1)
-        print('done')
-        self.update_graphics_view()
+        if self.processActive:
+            self.activeImageReconstructed = image
+            # Store in format compatible with microservice
+            array_to_image(self.activeImageReconstructed, self.activeImageReconstructedDir,
+                           self.activeImageReconstructedFileName)
+            # Request metrics for the compression operation
+            image_path1 = os.path.join(self.activeImagePath)
+            image_path2 = os.path.join(self.activeImageReconstructedDir, self.activeImageReconstructedFileName)
+            result = call_metrics_microservice(image_path1, image_path2)
+            _, _, mse, psnr = result.split(',')
+            # Update GUI elements
+            self.update_metrics(mse, psnr)
+            # Reconsider approach to viewSelectorPathDict initialization
+            self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
+            self.viewSelector.setCurrentIndex(1)
+            print('done')
+            self.processActive = False
+            self.processToggle.setText('Start')
+            self.update_graphics_view()
 
     def on_heatmap_converted(self, heatmap_img):
-        self.viewSelectorPathDict['Heatmap'] = heatmap_img
-        self.load_image(2)
+        if self.processActive:
+            self.viewSelectorPathDict['Heatmap'] = heatmap_img
+            self.load_image(2)
 
     def on_coords_converted(self, coords_img):
-        self.viewSelectorPathDict['Sampled Points'] = coords_img
-        self.load_image(3)
+        if self.processActive:
+            self.viewSelectorPathDict['Sampled Points'] = coords_img
+            self.load_image(3)
 
     def on_voronoi_converted(self, voronoi_img):
-        self.viewSelectorPathDict['Voronoi Diagram'] = voronoi_img
-        self.load_image(4)
-
+        if self.processActive:
+            self.viewSelectorPathDict['Voronoi Diagram'] = voronoi_img
+            self.load_image(4)
 
     def update_metrics(self, mse, psnr):
         """
