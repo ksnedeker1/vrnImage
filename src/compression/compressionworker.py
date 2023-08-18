@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from scipy.spatial import Voronoi
+from timeit import default_timer
 
 from src.processing.edgedetection import SobelEdgeDetection
 from src.processing.pointsampling import sample_coordinates
@@ -11,6 +12,7 @@ class CompressionWorker(QThread):
     heatmap_ready = pyqtSignal(object)
     coords_ready = pyqtSignal(object)
     voronoi_ready = pyqtSignal(object)
+    compression_done = pyqtSignal(object, object)
     image_reconstructed = pyqtSignal(object)
 
     def __init__(self):
@@ -30,6 +32,7 @@ class CompressionWorker(QThread):
         self.seed = params.seed
 
     def run(self):
+        start = default_timer()
         # Gather heatmap
         det = SobelEdgeDetection()
         (_, activeImageHeatmap), time = det.run(self.activeImageCIELAB)
@@ -43,8 +46,10 @@ class CompressionWorker(QThread):
         self.voronoi_ready.emit(active_image_voronoi)
         active_image_avg_colors = voronoi_average_color_by_cell(self.activeImageRGB, active_image_voronoi)
         # Store compressed image
-        vrn_compress(self.activeImageRGB, active_image_voronoi, active_image_avg_colors,
-                     'compressed_image', directory='./')
+        compressed_size = vrn_compress(self.activeImageRGB, active_image_voronoi, active_image_avg_colors,
+                                       'compressed_image', directory='./')
+        duration = default_timer() - start
+        self.compression_done.emit(compressed_size, duration)
         # Reconstruct image
         active_image_reconstructed = reconstruct_image(active_image_voronoi, active_image_avg_colors,
                                                      self.activeImageRGB.shape)
