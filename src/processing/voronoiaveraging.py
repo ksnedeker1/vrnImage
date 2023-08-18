@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-import skimage
 
 
 def voronoi_average_color_by_cell(img, vor):
@@ -55,7 +54,7 @@ def reconstruct_image(vor, averages, img_shape):
     rows, cols = img_shape[:2]
     # Iterate through valid regions
     for idx, region in enumerate(vor.regions):
-        if not -1 in region and len(region) > 1:
+        if -1 not in region and len(region) > 1:
             # Define the polygon and clamp vertices to image bounds
             polygon = np.array([vor.vertices[i] for i in region], dtype=np.int32)
             polygon[:, 0] = np.clip(polygon[:, 0], 0, cols - 1)
