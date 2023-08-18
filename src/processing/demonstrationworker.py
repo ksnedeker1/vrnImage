@@ -10,9 +10,13 @@ class DemonstrationWorker(QThread):
     coords_converted = pyqtSignal(object)
     voronoi_converted = pyqtSignal(object)
 
-    def __init__(self, image_shape):
+    def __init__(self):
         super().__init__()
-        self.image_shape = image_shape
+        self.image_shape = None
+
+    @pyqtSlot(object)
+    def set_image_shape(self, shape):
+        self.image_shape = shape
 
     @pyqtSlot(object)
     def handle_heatmap(self, data):
