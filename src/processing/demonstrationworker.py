@@ -6,6 +6,10 @@ from src.processing.generatevoronoiimg import generate_voronoi_img
 
 
 class DemonstrationWorker(QThread):
+    """
+    QThread process for generating demonstrative elements representing
+    stages of the compression process.
+    """
     heatmap_converted = pyqtSignal(object)
     coords_converted = pyqtSignal(object)
     voronoi_converted = pyqtSignal(object)
