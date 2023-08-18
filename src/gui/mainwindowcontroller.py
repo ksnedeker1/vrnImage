@@ -22,85 +22,28 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def __init__(self, *args, **kwargs):
         super(MainWindowController, self).__init__(*args, **kwargs)
-
         self.setupUi(self)
-        self.setWindowIcon(QtGui.QIcon('./src/resources/icon.svg'))
-
-        self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
-                            self.samplingLinearityValue, self.seedValue]
-        self.currParams = CompressionParams(*[None for _ in self.paramInputs])
-
         self.init_element_states()
-
-        # Section show/hide buttons
-        self.showGeneralSettings.clicked.connect(self.on_click_section_toggle)
-        self.showAdvancedSettings.clicked.connect(self.on_click_section_toggle)
-        self.showGeneralMetrics.clicked.connect(self.on_click_section_toggle)
-        self.showAdvancedMetrics.clicked.connect(self.on_click_section_toggle)
-
-        # Image selection button
-        self.selectImage.clicked.connect(self.show_select_image_menu)
-
-        # Process control
-        self.processToggle.clicked.connect(self.process_toggle_handler)
-        self.processActive = False
-
-        self.currDir = os.path.dirname(os.path.abspath(__file__))
-
-        self.activeImagePath = None
-        self.activeImageRGB = None
-        self.activeImageCIELAB = None
-        self.activeImageHeatmap = None
-        self.activeImageCoords = None
-        self.activeImageVoronoi = None
-        self.activeImageAvgColors = None
-        self.activeImageReconstructed = None
-        self.activeImageReconstructedDir = os.path.abspath(os.path.join(self.currDir, '..', '..', 'images', 'results'))
-        self.activeImageReconstructedFileName = 'result_tmp.jpg'
-
-        if not os.path.isdir(self.activeImageReconstructedDir):
-            os.mkdir(self.activeImageReconstructedDir)
-
-        # TODO: Merge and convert to CompressionParams object
-        self.sampleSize = 100000
-        self.linearityPower = 1.5
-        self.seed = None
-
-        # Init CompressionWorker and DemonstrationWorker
+        self.init_clickable_elements_general()
+        self.init_process_state()
+        self.init_demonstrative_elements()
         self.init_compression_worker()
         self.init_demonstration_worker()
-
-        self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
-        self.viewSelector.currentIndexChanged.connect(self.update_graphics_view)
-
-        # Demonstrative elements
-        self.demonstrative = True
-        self.toggleDemonstrativeElements.stateChanged.connect(self.toggle_demonstrative_element_generation)
-
-        self.currentText = 0
-        self.textDisplayList = [(td_original_image, 0), (td_heatmap, 2), (td_sampled_points, 3),
-                                (td_voronoi_diagram, 4), (td_compressed_image, 1)]
-        self.textDisplayNext.clicked.connect(self.next_text_display)
-        self.textDisplayPrev.clicked.connect(self.prev_text_display)
-
-        self.processStepsGenerated = False
 
     def init_element_states(self):
         """
         Sets default states and contents of various elements.
         """
+        self.setWindowIcon(QtGui.QIcon('./src/gui/resources/icon.svg'))
         # Set stylesheet
         stylesheet = "./src/gui/resources/stylesheet.qss"
         with open(stylesheet, "r") as f:
             self.setStyleSheet(f.read())
-
         # Set default "Generate Demonstrative Elements" checkbox state
         self.toggleDemonstrativeElements.setChecked(True)
-
         # Set initial textDisplay contents and state
         self.textDisplay.setHtml(td_welcome)
         self.textDisplay.setReadOnly(True)
-
         # Set default visibility of parameters and metrics
         self.samplesLabel.setVisible(False)
         self.samplesValue.setVisible(False)
@@ -128,7 +71,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.mPSNRLabel.setVisible(False)
         self.mPSNRValue.setVisible(False)
         self.line_7.setVisible(False)
-
         # Set validators and default values for parameter entry QLineEdits
         for widget in self.paramInputs[:-1]:
             widget.setValidator(QtGui.QDoubleValidator(0.0, 1.0, 2))
@@ -140,7 +82,64 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.seedValue.setValidator(QtGui.QDoubleValidator(0, 999999999, 0))
         self.seedValue.setText(str(np.random.randint(0, 9999)))
 
+    def init_clickable_elements_general(self):
+        """
+        Initialize general purpose clickable GUI elements.
+        """
+        # Section show/hide buttons
+        self.showGeneralSettings.clicked.connect(self.on_click_section_toggle)
+        self.showAdvancedSettings.clicked.connect(self.on_click_section_toggle)
+        self.showGeneralMetrics.clicked.connect(self.on_click_section_toggle)
+        self.showAdvancedMetrics.clicked.connect(self.on_click_section_toggle)
+        # Image selection button
+        self.selectImage.clicked.connect(self.show_select_image_menu)
+        # Process control
+        self.processToggle.clicked.connect(self.process_toggle_handler)
+        # Text display
+        self.textDisplayNext.clicked.connect(self.next_text_display)
+        self.textDisplayPrev.clicked.connect(self.prev_text_display)
+
+    def init_process_state(self):
+        """
+        Initialize compression process state.
+        """
+        self.processActive = False
+        # Compression items and paths
+        self.currDir = os.path.dirname(os.path.abspath(__file__))
+        self.activeImagePath = None
+        self.activeImageRGB = None
+        self.activeImageCIELAB = None
+        self.activeImageHeatmap = None
+        self.activeImageCoords = None
+        self.activeImageVoronoi = None
+        self.activeImageAvgColors = None
+        self.activeImageReconstructed = None
+        self.activeImageReconstructedDir = os.path.abspath(os.path.join(self.currDir, '..', '..', 'images', 'results'))
+        self.activeImageReconstructedFileName = 'result_tmp.jpg'
+        if not os.path.isdir(self.activeImageReconstructedDir):
+            os.mkdir(self.activeImageReconstructedDir)
+        # Initialize CompressionParams object and store input elements
+        self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
+                            self.samplingLinearityValue, self.seedValue]
+        self.currParams = CompressionParams(*[None for _ in self.paramInputs])
+
+    def init_demonstrative_elements(self):
+        """
+        Initialize demonstrative GUI elements.
+        """
+        self.demonstrative = True
+        self.processStepsGenerated = False
+        self.viewSelectorPathDict = {self.viewSelector.itemText(i): None for i in range(self.viewSelector.count())}
+        self.viewSelector.currentIndexChanged.connect(self.update_graphics_view)
+        self.toggleDemonstrativeElements.stateChanged.connect(self.toggle_demonstrative_element_generation)
+        self.currentText = 0
+        self.textDisplayList = [(td_original_image, 0), (td_heatmap, 2), (td_sampled_points, 3),
+                                (td_voronoi_diagram, 4), (td_compressed_image, 1)]
+
     def init_metrics_display(self):
+        """
+        Initialize metrics text.
+        """
         self.mProcessTimeValue.setText('Waiting...')
         self.mCompressionRatioValue.setText('Waiting...')
         self.mMSEValue.setText('Waiting...')
@@ -150,6 +149,9 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.mSSIMValue.setText('Waiting...')
 
     def init_compression_worker(self):
+        """
+        Initialize CompressionWorker(QThread) object and connect request/response signals.
+        """
         self.compression_worker = CompressionWorker()
         # Request signal
         self.cw_set_params.connect(self.compression_worker.set_params)
@@ -161,6 +163,9 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.compression_worker.image_reconstructed.connect(self.on_image_reconstructed)
 
     def init_demonstration_worker(self):
+        """
+        Initialize DemonstrationWorker(QThread) object and connect request/response signals.
+        """
         self.demonstration_worker = DemonstrationWorker()
         # Request signals
         self.dw_set_shape.connect(self.demonstration_worker.set_image_shape)
@@ -188,7 +193,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.samplingLinearityValue.setVisible(not self.samplingLinearityValue.isVisible())
             self.edgeStrengthLabel.setVisible(not self.edgeStrengthLabel.isVisible())
             self.edgeStrengthValue.setVisible(not self.edgeStrengthValue.isVisible())
-
         # Toggle Advanced Settings section
         elif obj is self.showAdvancedSettings:
             button_text = self.showAdvancedSettings.text()
@@ -234,18 +238,28 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.clear_td()
 
     def next_text_display(self):
+        """
+        Handle display of 'next' text display item.
+        """
         if self.processStepsGenerated:
             self.currentText += 1
             self.currentText %= len(self.textDisplayList)
             self.update_text_display()
 
     def prev_text_display(self):
+        """
+        Handle display of 'prev' text display item.
+        """
         if self.processStepsGenerated:
             self.currentText -= 1
             self.currentText %= len(self.textDisplayList)
             self.update_text_display()
 
     def update_text_display(self):
+        """
+        Display the HTML text string at the current index and update the graphics
+        view to match the description being shown.
+        """
         if self.processStepsGenerated:
             item = self.textDisplayList[self.currentText]
             self.textDisplay.setHtml(item[0])
@@ -341,8 +355,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
     def load_image(self, idx):
         """
         Load the image at path activeImagePath and show it as a preview in the graphics view.
-        TODO: Transfer control of updating current image in view to update_graphics_view(). Instead:
-        update self.viewSelector and call self.update_graphics_view()
         """
         old_idx = self.viewSelector.currentIndex()
         self.viewSelector.setCurrentIndex(idx)
@@ -379,6 +391,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             if invalid_input:
                 self.statusbar.showMessage(*sb_invalid_parameters)
                 return
+            # Else, start process with current parameters
             try:
                 params = CompressionParams(
                     int(self.samplesValue.text()),
@@ -392,7 +405,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage(*sb_invalid_parameters)
                 return
             # Update GUI elements and call start_process()
-            # self.clear_td()
             self.processActive = True
             self.processStepsGenerated = False
             self.processToggle.setText('Stop')
@@ -491,16 +503,25 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.update_text_display()
 
     def on_heatmap_converted(self, heatmap_img):
+        """
+        Display generated heatmap.
+        """
         if self.processActive:
             self.viewSelectorPathDict['Heatmap'] = heatmap_img
             self.load_image(2)
 
     def on_coords_converted(self, coords_img):
+        """
+        Display sampled coords.
+        """
         if self.processActive:
             self.viewSelectorPathDict['Sampled Points'] = coords_img
             self.load_image(3)
 
     def on_voronoi_converted(self, voronoi_img):
+        """
+        Display generated Voronoi diagram.
+        """
         if self.processActive:
             self.viewSelectorPathDict['Voronoi Diagram'] = voronoi_img
             self.load_image(4)
