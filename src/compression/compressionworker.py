@@ -9,6 +9,7 @@ from src.compression.vrnfilehandler import vrn_compress
 
 
 class CompressionWorker(QThread):
+    """QThread process for handling image compression."""
     heatmap_ready = pyqtSignal(object)
     coords_ready = pyqtSignal(object)
     voronoi_ready = pyqtSignal(object)
@@ -25,6 +26,9 @@ class CompressionWorker(QThread):
 
     @pyqtSlot(object, object, object)
     def set_params(self, img_RGB, img_CIELAB, params):
+        """
+        Load parameters for compression process
+        """
         self.activeImageRGB = img_RGB
         self.activeImageCIELAB = img_CIELAB
         self.sampleSize = params.samples
@@ -32,6 +36,9 @@ class CompressionWorker(QThread):
         self.seed = params.seed
 
     def run(self):
+        """
+        Start compression process. Send signals at various stages of completion.
+        """
         start = default_timer()
         # Gather heatmap
         det = SobelEdgeDetection()
