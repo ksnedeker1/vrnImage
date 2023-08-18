@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from scipy.spatial import Voronoi
 
 from src.processing.edgedetection import SobelEdgeDetection
@@ -13,13 +13,21 @@ class CompressionWorker(QThread):
     voronoi_ready = pyqtSignal(object)
     image_reconstructed = pyqtSignal(object)
 
-    def __init__(self, active_image_RGB, active_image_CIELAB, sample_size, linearity_power, seed):
+    def __init__(self):
         super().__init__()
-        self.activeImageRGB = active_image_RGB
-        self.activeImageCIELAB = active_image_CIELAB
-        self.sampleSize = sample_size
-        self.linearityPower = linearity_power
-        self.seed = seed
+        self.activeImageRGB = None
+        self.activeImageCIELAB = None
+        self.sampleSize = None
+        self.linearityPower = None
+        self.seed = None
+
+    @pyqtSlot(object, object, object)
+    def set_params(self, img_RGB, img_CIELAB, params):
+        self.activeImageRGB = img_RGB
+        self.activeImageCIELAB = img_CIELAB
+        self.sampleSize = params.samples
+        self.linearityPower = params.sampling_linearity
+        self.seed = params.seed
 
     def run(self):
         # Gather heatmap

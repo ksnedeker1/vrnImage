@@ -1,9 +1,9 @@
 class CompressionParams:
-    def __init__(self, compression_level, edge_strength, color_salience, sampling_uniformity, seed):
-        self.compression_level = compression_level
+    def __init__(self, samples, edge_strength, color_salience, sampling_linearity, seed):
+        self.samples = samples
         self.edge_strength = edge_strength
         self.color_salience = color_salience
-        self.sampling_uniformity = sampling_uniformity
+        self.sampling_linearity = sampling_linearity
         self.seed = seed
 
     def to_dict(self):
