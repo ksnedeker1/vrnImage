@@ -25,7 +25,6 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon('./src/resources/icon.svg'))
-        self.testMsg = 'TEST ========================='
 
         self.paramInputs = [self.samplesValue, self.edgeStrengthValue, self.colorSalienceValue,
                             self.samplingLinearityValue, self.seedValue]
@@ -132,6 +131,15 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.samplingLinearityValue.setText('1.0')
         self.seedValue.setValidator(QtGui.QDoubleValidator(0, 999999999, 0))
         self.seedValue.setText(str(np.random.randint(0, 9999)))
+
+    def init_metrics_display(self):
+        self.mProcessTimeValue.setText('Waiting...')
+        self.mCompressionRatioValue.setText('Waiting...')
+        self.mMSEValue.setText('Waiting...')
+        self.mPSNRValue.setText('Waiting...')
+        self.mSNRValue.setText('Waiting...')
+        self.mPMSEValue.setText('Waiting...')
+        self.mSSIMValue.setText('Waiting...')
 
     def init_compression_worker(self):
         self.compression_worker = CompressionWorker()
@@ -366,6 +374,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Start compression thread and connect signals.
         """
+        self.init_metrics_display()
         self.statusbar.showMessage(
             sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
                                      samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
@@ -410,7 +419,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
                                          samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
                                          task=sb_task_compressed))
 
-    def on_compression_done(self, compressed_size):
+    def on_compression_done(self, compressed_size, duration):
         """
         Handle compression_done signal
         """
@@ -418,7 +427,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             orig_size = len(self.activeImageRGB) * len(self.activeImageRGB[0]) * len(self.activeImageRGB[0][0])
             size_diff = orig_size - compressed_size
             size_percent = 100 * compressed_size / orig_size
-            self.update_metrics(size_diff=size_diff, size_percent=size_percent, compressed_size=compressed_size)
+            self.update_metrics(size_diff=size_diff, size_percent=size_percent,
+                                compressed_size=compressed_size, duration=duration)
             self.statusbar.showMessage(
                 sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
                                          samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
@@ -463,7 +473,8 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.viewSelectorPathDict['Voronoi Diagram'] = voronoi_img
             self.load_image(4)
 
-    def update_metrics(self, mse=None, psnr=None, size_diff=None, size_percent=None, compressed_size=None):
+    def update_metrics(self, mse=None, psnr=None, size_diff=None, size_percent=None,
+                       compressed_size=None, duration=None):
         """
         Update value labels for metrics display in GUI.
         """
@@ -476,7 +487,9 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         if None not in (size_diff, size_percent, compressed_size):
             sign = '+' if size_percent > 100 else ''
             self.mCompressionRatioValue.setText(f'{size_percent:.2f}%, {sign}{-size_diff/1000000:.2f}MB, '
-                                                f'{compressed_size:.2f}')
+                                                f'{compressed_size/1000000:.2f}MB')
+        if duration is not None:
+            self.mProcessTimeValue.setText(f'{duration:.2f}s')
 
     def clear_td(self):
         """
