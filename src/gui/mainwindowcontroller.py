@@ -141,6 +141,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.compression_worker.heatmap_ready.connect(self.on_heatmap_ready)
         self.compression_worker.coords_ready.connect(self.on_coords_ready)
         self.compression_worker.voronoi_ready.connect(self.on_voronoi_ready)
+        self.compression_worker.compression_done.connect(self.on_compression_done)
         self.compression_worker.image_reconstructed.connect(self.on_image_reconstructed)
 
     def init_demonstration_worker(self):
@@ -312,6 +313,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.viewSelector.setCurrentIndex(idx)
         if old_idx == idx:
             self.update_graphics_view()
+            self.statusbar.showMessage(*sb_image_loaded)
         if self.demonstrative:
             pass
             # TODO: add HTML for load message/info
@@ -406,6 +408,20 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.statusbar.showMessage(
                 sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
                                          samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
+                                         task=sb_task_compressed))
+
+    def on_compression_done(self, compressed_size):
+        """
+        Handle compression_done signal
+        """
+        if self.processActive:
+            orig_size = len(self.activeImageRGB) * len(self.activeImageRGB[0]) * len(self.activeImageRGB[0][0])
+            size_diff = orig_size - compressed_size
+            size_percent = 100 * compressed_size / orig_size
+            self.update_metrics(size_diff=size_diff, size_percent=size_percent, compressed_size=compressed_size)
+            self.statusbar.showMessage(
+                sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
+                                         samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
                                          task=sb_task_reconstruct))
 
     def on_image_reconstructed(self, image):
@@ -423,13 +439,14 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             result = call_metrics_microservice(image_path1, image_path2)
             _, _, mse, psnr = result.split(',')
             # Update GUI elements
-            self.update_metrics(mse, psnr)
+            self.update_metrics(mse=mse, psnr=psnr)
             # Reconsider approach to viewSelectorPathDict initialization
             self.viewSelectorPathDict['Compressed Image'] = self.activeImageReconstructed
             self.viewSelector.setCurrentIndex(1)
             self.processActive = False
             self.processToggle.setText('Start')
             self.update_graphics_view()
+            self.statusbar.showMessage(*sb_process_complete)
 
     def on_heatmap_converted(self, heatmap_img):
         if self.processActive:
@@ -446,14 +463,20 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.viewSelectorPathDict['Voronoi Diagram'] = voronoi_img
             self.load_image(4)
 
-    def update_metrics(self, mse, psnr):
+    def update_metrics(self, mse=None, psnr=None, size_diff=None, size_percent=None, compressed_size=None):
         """
         Update value labels for metrics display in GUI.
         """
-        mse = str(round(float(mse), 2))
-        psnr = str(round(float(psnr), 2))
-        self.mMSEValue.setText(mse)
-        self.mPSNRValue.setText(psnr)
+        if mse is not None:
+            mse = str(round(float(mse), 2))
+            self.mMSEValue.setText(mse)
+        if psnr is not None:
+            psnr = str(round(float(psnr), 2))
+            self.mPSNRValue.setText(psnr)
+        if None not in (size_diff, size_percent, compressed_size):
+            sign = '+' if size_percent > 100 else ''
+            self.mCompressionRatioValue.setText(f'{size_percent:.2f}%, {sign}{-size_diff/1000000:.2f}MB, '
+                                                f'{compressed_size:.2f}')
 
     def clear_td(self):
         """
