@@ -77,6 +77,14 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         self.demonstrative = True
         self.toggleDemonstrativeElements.stateChanged.connect(self.toggle_demonstrative_element_generation)
 
+        self.currentText = 0
+        self.textDisplayList = [(td_original_image, 0), (td_heatmap, 2), (td_sampled_points, 3),
+                                (td_voronoi_diagram, 4), (td_compressed_image, 1)]
+        self.textDisplayNext.clicked.connect(self.next_text_display)
+        self.textDisplayPrev.clicked.connect(self.prev_text_display)
+
+        self.processStepsGenerated = False
+
     def init_element_states(self):
         """
         Sets default states and contents of various elements.
@@ -225,6 +233,25 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.demonstrative = False
             self.clear_td()
 
+    def next_text_display(self):
+        if self.processStepsGenerated:
+            self.currentText += 1
+            self.currentText %= len(self.textDisplayList)
+            self.update_text_display()
+
+    def prev_text_display(self):
+        if self.processStepsGenerated:
+            self.currentText -= 1
+            self.currentText %= len(self.textDisplayList)
+            self.update_text_display()
+
+    def update_text_display(self):
+        if self.processStepsGenerated:
+            item = self.textDisplayList[self.currentText]
+            self.textDisplay.setHtml(item[0])
+            self.viewSelector.setCurrentIndex(item[1])
+            self.update_graphics_view()
+
     def show_select_image_menu(self):
         """
         Secondary selection for 'Select Image'. User can choose images included with the application, or from their
@@ -367,6 +394,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             # Update GUI elements and call start_process()
             # self.clear_td()
             self.processActive = True
+            self.processStepsGenerated = False
             self.processToggle.setText('Stop')
             self.start_process(params)
 
@@ -375,6 +403,7 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
         Start compression thread and connect signals.
         """
         self.init_metrics_display()
+        self.textDisplay.setHtml(td_process_running)
         self.statusbar.showMessage(
             sb_process_status.format(image=self.activeImagePath.replace('\\', '/').split('/')[-1],
                                      samples=self.currParams.samples, linearity=self.currParams.sampling_linearity,
@@ -457,6 +486,9 @@ class MainWindowController(QtWidgets.QMainWindow, Ui_MainWindow):
             self.processToggle.setText('Start')
             self.update_graphics_view()
             self.statusbar.showMessage(*sb_process_complete)
+            self.processStepsGenerated = True
+            self.currentText = 4
+            self.update_text_display()
 
     def on_heatmap_converted(self, heatmap_img):
         if self.processActive:
