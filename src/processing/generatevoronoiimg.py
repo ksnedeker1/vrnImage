@@ -4,7 +4,7 @@ import numpy as np
 
 def generate_voronoi_img(shape, vor):
     """
-    Create an array representing an RGB image edges of Voronoi cells colored white.
+    Create a representation of the Voronoi diagram with color bins corresponding to cell size quartiles.
     """
     # Approximate all areas, find 25th, 50th, 75th percentile values
     areas = [shoelace([vor.vertices[i] for i in cell]) if -1 not in cell else 0 for cell in vor.regions]
